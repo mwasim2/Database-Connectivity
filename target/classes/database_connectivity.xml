@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd">
+	<http:listener-config name="HTTP_Listener_Configuration" host="0.0.0.0" port="8087" doc:name="HTTP Listener Configuration"/>
+	<db:mysql-config name="MySQL_Configuration" host="bgqxdk6j3tz8uizobnys-mysql.services.clever-cloud.com" port="3306" user="u5sitij2xfauobka" password="f6QwkxxkzrU4PFhl0ne0" database="bgqxdk6j3tz8uizobnys" doc:name="MySQL Configuration"/>
+	<flow name="database_connectivityFlow">
+		<file:inbound-endpoint path="src/test/resources/csv" responseTimeout="10000" doc:name="File" pollingFrequency="1">
+		</file:inbound-endpoint>
+		<dw:transform-message doc:name="Transform Message" metadata:id="2601a1f8-968a-46d3-92d2-81b83aca1e4a">
+			<dw:input-payload mimeType="application/csv"/>
+			<dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+payload map ((payload01 , indexOfPayload01) -> {
+	empID: payload01."Emp ID" as :number,
+	empName: payload01."First Name",
+	empSalary: payload01.Salary as :number,
+	empEmail: payload01.Email,
+	empCity: payload01.City,
+	empPhone: payload01."Phone No. "
+})]]></dw:set-payload>
+		</dw:transform-message>
+		<dw:transform-message doc:name="Transform Message">
+			<dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+payload]]></dw:set-payload>
+		</dw:transform-message>
+		<db:insert config-ref="MySQL_Configuration" doc:name="Database" bulkMode="true">
+			<db:parameterized-query><![CDATA[insert into employee (empID, empName, empSalary, empEmail, empCity, empPhone) values (#[payload.empID], #[payload.empName], #[payload.empSalary], #[payload.empEmail], #[payload.empCity], #[payload.empPhone])]]></db:parameterized-query>
+		</db:insert>
+		<logger message="#[payload]" level="INFO" doc:name="Logger"/>
+	</flow>
+</mule>
